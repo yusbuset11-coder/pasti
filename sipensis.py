@@ -107,60 +107,81 @@ def run_sipensis():
     
     with tab1:
         st.subheader("Form Input Presensi Harian Siswa")
-        col1, col2 = st.columns(2)
-        with col1:
-            tanggal_absen = st.date_input("Tanggal Absensi", datetime.now())
-            nama_guru_input = st.text_input("Nama Guru", value=user_name, disabled=True)
-        with col2:
-            sekolah_input = st.text_input("Nama Sekolah", value=pilih_sekolah if pilih_sekolah != "Semua Sekolah" else "")
-            kelas_input = st.text_input("Kelas", value=pilih_kelas if pilih_kelas != "Semua Kelas" else "")
-            
-        mata_pelajaran = st.text_input("Mata Pelajaran", placeholder="Contoh: Pendidikan Pancasila")
         
-        st.markdown("---")
-        st.markdown("### Daftar Siswa & Status Kehadiran")
-        
-        jumlah_siswa = st.number_input("Jumlah Siswa di Kelas", min_value=1, max_value=50, value=5)
-        
-        absensi_rows = []
-        for i in range(1, int(jumlah_siswa) + 1):
-            cols = st.columns([1, 4, 1, 1, 1])
-            with cols[0]:
-                st.write(f"No. {i}")
-            with cols[1]:
-                nama_siswa = st.text_input(f"Nama Siswa {i}", key=f"siswa_{i}")
-            with cols[2]:
-                s = st.checkbox("S", key=f"s_{i}")
-            with cols[3]:
-                i_val = st.checkbox("I", key=f"i_{i}")
-            with cols[4]:
-                a = st.checkbox("A", key=f"a_{i}")
-            
-            if nama_siswa:
-                absensi_rows.append({
-                    "Tanggal": str(tanggal_absen),
-                    "Sekolah": sekolah_input,
-                    "Mata_Pelajaran": mata_pelajaran,
-                    "Kelas": kelas_input,
-                    "No": i,
-                    "Nama_Siswa": nama_siswa,
-                    "S": "V" if s else "",
-                    "I": "V" if i_val else "",
-                    "A": "V" if a else ""
-                })
+        if df_absensi.empty:
+            st.warning("Belum ada data siswa/master di database Anda. Silakan upload template melalui tab 'Download & Upload Database Guru' terlebih dahulu.")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                tanggal_absen = st.date_input("Tanggal Absensi", datetime.now())
+                nama_guru_input = st.text_input("Nama Guru", value=user_name, disabled=True)
+            with col2:
+                # Ambil daftar unik sekolah dari database guru
+                list_sekolah_db = df_absensi["Sekolah"].dropna().unique().tolist() if "Sekolah" in df_absensi.columns else []
+                pilih_sekolah_form = st.selectbox("Pilih Sekolah", list_sekolah_db if list_sekolah_db else ["-"])
                 
-        if st.button("💾 Simpan Absensi ke Database Pribadi"):
-            if absensi_rows:
-                for row in absensi_rows:
-                    sheet_absensi.append_row([
-                        row["Tanggal"], row["Sekolah"], row["Mata_Pelajaran"], 
-                        row["Kelas"], row["No"], row["Nama_Siswa"], 
-                        row["S"], row["I"], row["A"]
-                    ])
-                st.success("Data absensi berhasil disimpan ke Spreadsheet pribadi Anda!")
-                st.rerun()
+                # Ambil daftar kelas yang sesuai dengan sekolah yang dipilih
+                df_filter_kelas = df_absensi[df_absensi["Sekolah"] == pilih_sekolah_form] if list_sekolah_db else pd.DataFrame()
+                list_kelas_db = df_filter_kelas["Kelas"].dropna().unique().tolist() if "Kelas" in df_filter_kelas.columns else []
+                pilih_kelas_form = st.selectbox("Pilih Kelas", list_kelas_db if list_kelas_db else ["-"])
+                
+            # Input mata pelajaran secara dinamis (mendukung multi-mapel yang diajar guru)
+            mata_pelajaran = st.text_input("Mata Pelajaran yang Diajar", placeholder="Contoh: Pendidikan Pancasila / Matematika")
+            
+            st.markdown("---")
+            st.markdown(f"### Daftar Siswa Kelas {pilih_kelas_form} ({pilih_sekolah_form})")
+            
+            # Saring daftar siswa unik berdasarkan sekolah dan kelas yang dipilih
+            if not df_filter_kelas.empty and "Kelas" in df_filter_kelas.columns:
+                df_siswa_kelas = df_filter_kelas[df_filter_kelas["Kelas"] == pilih_kelas_form]
+                df_siswa_unik = df_siswa_kelas[["No", "Nama_Siswa"]].drop_duplicates().sort_values(by="No") if "No" in df_siswa_kelas.columns and "Nama_Siswa" in df_siswa_kelas.columns else pd.DataFrame()
             else:
-                st.warning("Mohon isi minimal satu nama siswa.")
+                df_siswa_unik = pd.DataFrame()
+                
+            absensi_rows = []
+            if not df_siswa_unik.empty:
+                for idx, row_s in df_siswa_unik.iterrows():
+                    no_s = row_s.get("No", idx + 1)
+                    nama_s = row_s.get("Nama_Siswa", "")
+                    
+                    cols = st.columns([1, 4, 1, 1, 1])
+                    with cols[0]:
+                        st.write(f"No. {no_s}")
+                    with cols[1]:
+                        st.write(nama_s)  # Tampil otomatis dari database guru, tidak perlu ketik manual
+                    with cols[2]:
+                        s = st.checkbox("S", key=f"s_{pilih_kelas_form}_{no_s}")
+                    with cols[3]:
+                        i_val = st.checkbox("I", key=f"i_{pilih_kelas_form}_{no_s}")
+                    with cols[4]:
+                        a = st.checkbox("A", key=f"a_{pilih_kelas_form}_{no_s}")
+                    
+                    absensi_rows.append({
+                        "Tanggal": str(tanggal_absen),
+                        "Sekolah": pilih_sekolah_form,
+                        "Mata_Pelajaran": mata_pelajaran,
+                        "Kelas": pilih_kelas_form,
+                        "No": no_s,
+                        "Nama_Siswa": nama_s,
+                        "S": "V" if s else "",
+                        "I": "V" if i_val else "",
+                        "A": "V" if a else ""
+                    })
+                    
+                if st.button("💾 Simpan Absensi ke Database Pribadi"):
+                    if absensi_rows:
+                        for row in absensi_rows:
+                            sheet_absensi.append_row([
+                                row["Tanggal"], row["Sekolah"], row["Mata_Pelajaran"], 
+                                row["Kelas"], row["No"], row["Nama_Siswa"], 
+                                row["S"], row["I"], row["A"]
+                            ])
+                        st.success("Data absensi berhasil disimpan ke Spreadsheet pribadi Anda!")
+                        st.rerun()
+                    else:
+                        st.warning("Tidak ada data siswa untuk disimpan.")
+            else:
+                st.info("Belum ada data siswa pada kelas ini. Pastikan Anda sudah mengunggah master data siswa yang benar melalui tab 'Download & Upload Database Guru'.")
 
     with tab2:
         st.subheader("📥 Download & Upload Database Guru")
