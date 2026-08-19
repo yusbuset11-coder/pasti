@@ -106,6 +106,10 @@ def run_sipensis():
     ])
     
     with tab1:
+        with tab1:
+        st.error("DEBUG: SAYA SUDAH MEMUAT VERSI BARU")  # <--- Tambahkan baris ini
+        st.subheader("Form Input Presensi Harian Siswa")
+        # ... (sisa kode lainnya)
         st.subheader("Form Input Presensi Harian Siswa")
         
         if df_absensi.empty:
