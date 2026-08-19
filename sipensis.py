@@ -116,7 +116,7 @@ def run_sipensis():
                 tanggal_absen = st.date_input("Tanggal Absensi", datetime.now())
                 nama_guru_input = st.text_input("Nama Guru", value=user_name, disabled=True)
             with col2:
-                # 1. Pilihan Sekolah Interaktif (Dropdown)
+                # Pilihan Sekolah Interaktif (Dropdown)
                 list_sekolah_db = df_absensi["Sekolah"].dropna().unique().tolist() if "Sekolah" in df_absensi.columns else []
                 pilih_sekolah_form = st.selectbox("Pilih Sekolah", list_sekolah_db if list_sekolah_db else ["-"])
                 
@@ -153,7 +153,7 @@ def run_sipensis():
                     with cols[4]:
                         a_checked = st.checkbox("A", key=f"a_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     
-                    # 2. Simpan sebagai string "V" atau kosong "" (Bukan True/False)
+                    # Kolom Sakit, Izin, Alpha disimpan sebagai "V" jika dicentang atau kosong jika tidak
                     absensi_rows.append({
                         "Tanggal": str(tanggal_absen),
                         "Sekolah": pilih_sekolah_form,
