@@ -109,35 +109,32 @@ def run_sipensis():
         st.subheader("Form Input Presensi Harian Siswa")
         
         if df_absensi.empty:
-            st.warning("Belum ada data siswa/master di database Anda. Silakan upload template melalui tab 'Download & Upload Database Guru' terlebih dahulu.")
+            st.warning("Belum ada data siswa di database Anda. Silakan upload template melalui tab 'Download & Upload Database Guru' terlebih dahulu.")
         else:
             col1, col2 = st.columns(2)
             with col1:
                 tanggal_absen = st.date_input("Tanggal Absensi", datetime.now())
                 nama_guru_input = st.text_input("Nama Guru", value=user_name, disabled=True)
             with col2:
-                # Ambil daftar unik sekolah dari database guru
+                # 1. Pilihan Sekolah yang Dinamis (Mendukung guru mengajar di banyak sekolah)
                 list_sekolah_db = df_absensi["Sekolah"].dropna().unique().tolist() if "Sekolah" in df_absensi.columns else []
                 pilih_sekolah_form = st.selectbox("Pilih Sekolah", list_sekolah_db if list_sekolah_db else ["-"])
                 
-                # Ambil daftar kelas yang sesuai dengan sekolah yang dipilih
-                df_filter_kelas = df_absensi[df_absensi["Sekolah"] == pilih_sekolah_form] if list_sekolah_db else pd.DataFrame()
-                list_kelas_db = df_filter_kelas["Kelas"].dropna().unique().tolist() if "Kelas" in df_filter_kelas.columns else []
+                # Filter kelas berdasarkan sekolah yang dipilih
+                df_filter_sekolah = df_absensi[df_absensi["Sekolah"] == pilih_sekolah_form] if list_sekolah_db else pd.DataFrame()
+                list_kelas_db = df_filter_sekolah["Kelas"].dropna().unique().tolist() if "Kelas" in df_filter_sekolah.columns else []
                 pilih_kelas_form = st.selectbox("Pilih Kelas", list_kelas_db if list_kelas_db else ["-"])
                 
-            # Input mata pelajaran secara dinamis (mendukung multi-mapel yang diajar guru)
-            mata_pelajaran = st.text_input("Mata Pelajaran yang Diajar", placeholder="Contoh: Pendidikan Pancasila / Matematika")
+            # Input mata pelajaran secara dinamis
+            mata_pelajaran = st.text_input("Mata Pelajaran yang Diajar", placeholder="Contoh: Pendidikan Pancasila")
             
             st.markdown("---")
             st.markdown(f"### Daftar Siswa Kelas {pilih_kelas_form} ({pilih_sekolah_form})")
             
-            # Saring daftar siswa unik berdasarkan sekolah dan kelas yang dipilih
-            if not df_filter_kelas.empty and "Kelas" in df_filter_kelas.columns:
-                df_siswa_kelas = df_filter_kelas[df_filter_kelas["Kelas"] == pilih_kelas_form]
-                df_siswa_unik = df_siswa_kelas[["No", "Nama_Siswa"]].drop_duplicates().sort_values(by="No") if "No" in df_siswa_kelas.columns and "Nama_Siswa" in df_siswa_kelas.columns else pd.DataFrame()
-            else:
-                df_siswa_unik = pd.DataFrame()
-                
+            # Saring daftar siswa berdasarkan sekolah dan kelas yang aktif dipilih
+            df_filter_kelas = df_filter_sekolah[df_filter_sekolah["Kelas"] == pilih_kelas_form] if not df_filter_sekolah.empty else pd.DataFrame()
+            df_siswa_unik = df_filter_kelas[["No", "Nama_Siswa"]].drop_duplicates().sort_values(by="No") if not df_filter_kelas.empty else pd.DataFrame()
+            
             absensi_rows = []
             if not df_siswa_unik.empty:
                 for idx, row_s in df_siswa_unik.iterrows():
@@ -148,13 +145,13 @@ def run_sipensis():
                     with cols[0]:
                         st.write(f"No. {no_s}")
                     with cols[1]:
-                        st.write(nama_s)  # Tampil otomatis dari database guru, tidak perlu ketik manual
+                        st.write(nama_s)
                     with cols[2]:
-                        s = st.checkbox("S", key=f"s_{pilih_kelas_form}_{no_s}")
+                        s = st.checkbox("S", key=f"s_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     with cols[3]:
-                        i_val = st.checkbox("I", key=f"i_{pilih_kelas_form}_{no_s}")
+                        i_val = st.checkbox("I", key=f"i_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     with cols[4]:
-                        a = st.checkbox("A", key=f"a_{pilih_kelas_form}_{no_s}")
+                        a = st.checkbox("A", key=f"a_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     
                     absensi_rows.append({
                         "Tanggal": str(tanggal_absen),
@@ -168,6 +165,7 @@ def run_sipensis():
                         "A": "V" if a else ""
                     })
                     
+                # Tombol Simpan yang mengarah ke Spreadsheet Pribadi Guru (sheet_absensi)
                 if st.button("💾 Simpan Absensi ke Database Pribadi"):
                     if absensi_rows:
                         for row in absensi_rows:
@@ -181,7 +179,7 @@ def run_sipensis():
                     else:
                         st.warning("Tidak ada data siswa untuk disimpan.")
             else:
-                st.info("Belum ada data siswa pada kelas ini. Pastikan Anda sudah mengunggah master data siswa yang benar melalui tab 'Download & Upload Database Guru'.")
+                st.info("Belum ada data siswa pada kelas ini.")
 
     with tab2:
         st.subheader("📥 Download & Upload Database Guru")
