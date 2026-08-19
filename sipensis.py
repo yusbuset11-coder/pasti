@@ -116,11 +116,11 @@ def run_sipensis():
                 tanggal_absen = st.date_input("Tanggal Absensi", datetime.now())
                 nama_guru_input = st.text_input("Nama Guru", value=user_name, disabled=True)
             with col2:
-                # 1. Pilihan Sekolah yang Dinamis (Mendukung guru mengajar di banyak sekolah)
+                # 1. Pilihan Sekolah Interaktif (Dropdown)
                 list_sekolah_db = df_absensi["Sekolah"].dropna().unique().tolist() if "Sekolah" in df_absensi.columns else []
                 pilih_sekolah_form = st.selectbox("Pilih Sekolah", list_sekolah_db if list_sekolah_db else ["-"])
                 
-                # Filter kelas berdasarkan sekolah yang dipilih
+                # Filter Kelas berdasarkan Sekolah yang dipilih
                 df_filter_sekolah = df_absensi[df_absensi["Sekolah"] == pilih_sekolah_form] if list_sekolah_db else pd.DataFrame()
                 list_kelas_db = df_filter_sekolah["Kelas"].dropna().unique().tolist() if "Kelas" in df_filter_sekolah.columns else []
                 pilih_kelas_form = st.selectbox("Pilih Kelas", list_kelas_db if list_kelas_db else ["-"])
@@ -131,9 +131,9 @@ def run_sipensis():
             st.markdown("---")
             st.markdown(f"### Daftar Siswa Kelas {pilih_kelas_form} ({pilih_sekolah_form})")
             
-            # Saring daftar siswa berdasarkan sekolah dan kelas yang aktif dipilih
+            # Saring daftar siswa unik berdasarkan sekolah dan kelas yang dipilih
             df_filter_kelas = df_filter_sekolah[df_filter_sekolah["Kelas"] == pilih_kelas_form] if not df_filter_sekolah.empty else pd.DataFrame()
-            df_siswa_unik = df_filter_kelas[["No", "Nama_Siswa"]].drop_duplicates().sort_values(by="No") if not df_filter_kelas.empty else pd.DataFrame()
+            df_siswa_unik = df_filter_kelas[["No", "Nama_Siswa"]].drop_duplicates().sort_values(by="No") if not df_filter_kelas.empty and "No" in df_filter_kelas.columns and "Nama_Siswa" in df_filter_kelas.columns else pd.DataFrame()
             
             absensi_rows = []
             if not df_siswa_unik.empty:
@@ -147,25 +147,25 @@ def run_sipensis():
                     with cols[1]:
                         st.write(nama_s)
                     with cols[2]:
-                        s = st.checkbox("S", key=f"s_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
+                        s_checked = st.checkbox("S", key=f"s_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     with cols[3]:
-                        i_val = st.checkbox("I", key=f"i_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
+                        i_checked = st.checkbox("I", key=f"i_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     with cols[4]:
-                        a = st.checkbox("A", key=f"a_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
+                        a_checked = st.checkbox("A", key=f"a_{pilih_sekolah_form}_{pilih_kelas_form}_{no_s}")
                     
+                    # 2. Simpan sebagai string "V" atau kosong "" (Bukan True/False)
                     absensi_rows.append({
                         "Tanggal": str(tanggal_absen),
                         "Sekolah": pilih_sekolah_form,
                         "Mata_Pelajaran": mata_pelajaran,
                         "Kelas": pilih_kelas_form,
-                        "No": no_s,
+                        "No": int(no_s) if pd.notna(no_s) else idx + 1,
                         "Nama_Siswa": nama_s,
-                        "S": "V" if s else "",
-                        "I": "V" if i_val else "",
-                        "A": "V" if a else ""
+                        "S": "V" if s_checked else "",
+                        "I": "V" if i_checked else "",
+                        "A": "V" if a_checked else ""
                     })
                     
-                # Tombol Simpan yang mengarah ke Spreadsheet Pribadi Guru (sheet_absensi)
                 if st.button("💾 Simpan Absensi ke Database Pribadi"):
                     if absensi_rows:
                         for row in absensi_rows:
